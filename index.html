@@ -1,0 +1,921 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>ResumeLens</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky input column on the left, scrolling dashboard on the right; stacks to one column on phones.
+   Matched terms get a highlighter-pen mark, the way you'd mark up a printed resume. */
+:root {
+  --bg: #F2F4F8; --surface: #FFFFFF; --surface-2: #E9EDF4; --ink: #121A2B; --muted: #566179; --line: #D7DDE8;
+  --accent: #2A46CF; --accent-ink: #FFFFFF; --accent-soft: #E2E7FC;
+  --mark: #FFE27A; --mark-ink: #3A2E00;
+  --good: #1D7F55; --good-soft: #DCF1E6; --warn: #9A6412; --warn-soft: #FAEFD8; --bad: #B83A33; --bad-soft: #FAE3E1;
+  --shadow: 0 1px 2px rgba(18,26,43,.06), 0 4px 16px rgba(18,26,43,.05);
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0D1220; --surface: #151C2D; --surface-2: #1D2640; --ink: #E6EBF5; --muted: #98A3BB; --line: #29334E;
+  --accent: #8FA3FF; --accent-ink: #0D1220; --accent-soft: #222D55;
+  --mark: #5B4B12; --mark-ink: #FFEAA6;
+  --good: #52C690; --good-soft: #14301F; --warn: #E5AD52; --warn-soft: #33270F; --bad: #F2837B; --bad-soft: #3A1A19;
+  --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0D1220; --surface: #151C2D; --surface-2: #1D2640; --ink: #E6EBF5; --muted: #98A3BB; --line: #29334E;
+  --accent: #8FA3FF; --accent-ink: #0D1220; --accent-soft: #222D55;
+  --mark: #5B4B12; --mark-ink: #FFEAA6;
+  --good: #52C690; --good-soft: #14301F; --warn: #E5AD52; --warn-soft: #33270F; --bad: #F2837B; --bad-soft: #3A1A19;
+  --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.55; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: 1.45rem; font-weight: 700; letter-spacing: -.01em; }
+h2 { font-size: 1.15rem; font-weight: 700; }
+h3 { font-size: .98rem; font-weight: 700; }
+p { margin: 0; }
+button { font: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.eyebrow { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+
+.topbar { border-bottom: 1px solid var(--line); background: var(--surface); }
+.topbar-in { max-width: 1240px; margin: 0 auto; padding-block: 14px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.logo { width: 34px; height: 34px; border-radius: 9px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--f-display); font-weight: 700; font-size: 1.05rem; flex: none; }
+.topbar .tag { margin-left: auto; }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 22px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.view-start { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 320px); gap: 22px; align-items: start; max-width: 1040px; margin: 0 auto; }
+@media (max-width: 900px) { .view-start { grid-template-columns: minmax(0, 1fr); } }
+.howto ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: .9rem; }
+.results-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.results-nav .who { flex: 1; min-width: 0; text-align: center; overflow-wrap: anywhere; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 20px; display: grid; gap: 14px; min-width: 0; }
+.field { display: grid; gap: 8px; }
+.field-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.drop { border: 1.5px dashed var(--line); border-radius: 12px; padding: 18px 14px; text-align: center; display: grid; gap: 4px; cursor: pointer; background: var(--surface-2); transition: border-color .15s, background .15s; }
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop strong { font-weight: 600; }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.file-status { font-size: .85rem; padding: 8px 10px; border-radius: 8px; }
+.file-status.ok { background: var(--good-soft); color: var(--good); }
+.file-status.warn { background: var(--warn-soft); color: var(--warn); }
+.file-status.err { background: var(--bad-soft); color: var(--bad); }
+textarea { width: 100%; font: inherit; font-size: .9rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; resize: vertical; min-height: 140px; }
+textarea:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+#resumeText { min-height: 180px; font-family: var(--f-mono); font-size: .78rem; }
+details > summary { cursor: pointer; color: var(--accent); font-weight: 500; font-size: .9rem; }
+.counter { font-family: var(--f-mono); font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.form-error { background: var(--bad-soft); color: var(--bad); border-radius: 10px; padding: 10px 12px; font-size: .9rem; }
+.form-error ul { margin: 4px 0 0; padding-left: 18px; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn { border: 1px solid transparent; border-radius: 10px; padding: 10px 16px; font-weight: 600; font-size: .92rem; display: inline-flex; align-items: center; gap: 8px; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:disabled { opacity: .55; cursor: progress; }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn-ghost:hover { background: var(--surface-2); }
+.btn-sm { padding: 6px 11px; font-size: .82rem; border-radius: 8px; }
+.linkbtn { background: none; border: 0; color: var(--accent); padding: 0; font-weight: 500; font-size: .88rem; text-decoration: underline; text-underline-offset: 3px; }
+.privacy { font-size: .8rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
+
+.results { display: grid; gap: 18px; min-width: 0; }
+.banner { background: var(--accent-soft); border-radius: 12px; padding: 12px 16px; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: .9rem; }
+
+.steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; list-style: none; margin: 0; padding: 0; }
+@media (max-width: 560px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.step { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px; min-width: 0; }
+.step .st { font-family: var(--f-mono); font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.step .nm { font-weight: 600; font-size: .88rem; }
+.step[data-s="done"] { border-color: var(--good); }
+.step[data-s="done"] .st { color: var(--good); }
+.step[data-s="active"] { border-color: var(--accent); }
+.step[data-s="active"] .st { color: var(--accent); }
+.step[data-s="error"] { border-color: var(--bad); }
+.step[data-s="error"] .st { color: var(--bad); }
+
+.score-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: center; }
+@media (max-width: 620px) { .score-grid { grid-template-columns: minmax(0, 1fr); justify-items: center; } }
+.ring { position: relative; width: 168px; height: 168px; max-width: 100%; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring .track { stroke: var(--surface-2); }
+.ring .val { transition: stroke-dashoffset .9s cubic-bezier(.2,.7,.2,1); }
+.ring-label { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; text-align: center; }
+.ring-num { font-family: var(--f-display); font-size: 2.9rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.ring-of { font-family: var(--f-mono); font-size: .75rem; color: var(--muted); }
+.band { display: inline-block; font-weight: 600; font-size: .8rem; padding: 3px 10px; border-radius: 99px; }
+.band.good { background: var(--good-soft); color: var(--good); }
+.band.warn { background: var(--warn-soft); color: var(--warn); }
+.band.bad { background: var(--bad-soft); color: var(--bad); }
+.band.info { background: var(--accent-soft); color: var(--accent); }
+.bars { display: grid; gap: 12px; width: 100%; min-width: 0; }
+.bar-row { display: grid; gap: 5px; }
+.bar-top { display: flex; justify-content: space-between; gap: 10px; font-size: .88rem; }
+.bar-top b { font-family: var(--f-mono); font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .8s cubic-bezier(.2,.7,.2,1); }
+.disclaimer { background: var(--warn-soft); color: var(--ink); border-radius: 10px; padding: 10px 12px; font-size: .86rem; }
+.disclaimer b { color: var(--warn); }
+.howcalc { font-size: .88rem; display: grid; gap: 8px; }
+.howcalc ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+
+.cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 760px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: .84rem; padding: 4px 10px; border-radius: 7px; background: var(--surface-2); color: var(--ink); display: inline-flex; gap: 6px; align-items: center; }
+.chip.hit { background: var(--mark); color: var(--mark-ink); }
+.chip.ai { background: var(--accent-soft); color: var(--accent); }
+.chip .pref { font-family: var(--f-mono); font-size: .66rem; text-transform: uppercase; opacity: .75; }
+.miss-list { display: grid; gap: 8px; }
+.miss { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; }
+.miss-top { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.miss-name { font-weight: 600; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { background: transparent; border: 0; padding: 4px 10px; font-size: .78rem; color: var(--muted); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"].have { background: var(--good-soft); color: var(--good); font-weight: 600; }
+.seg button[aria-pressed="true"].lack { background: var(--warn-soft); color: var(--warn); font-weight: 600; }
+.ai-note { font-size: .84rem; color: var(--muted); }
+.ai-note q { color: var(--ink); font-style: italic; }
+.projection { background: var(--good-soft); color: var(--ink); border-radius: 10px; padding: 10px 12px; font-size: .88rem; }
+.explain { font-size: .86rem; color: var(--muted); background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.checks li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: start; font-size: .9rem; }
+.dot { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: .72rem; font-weight: 700; margin-top: 1px; }
+.dot.ok { background: var(--good-soft); color: var(--good); }
+.dot.half { background: var(--warn-soft); color: var(--warn); }
+.dot.no { background: var(--bad-soft); color: var(--bad); }
+.pts { font-family: var(--f-mono); font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.ai-status { display: grid; gap: 10px; }
+.indet { height: 6px; border-radius: 99px; background: var(--surface-2); overflow: hidden; position: relative; }
+.indet::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 35%; background: var(--accent); border-radius: 99px; animation: slide 1.4s ease-in-out infinite; }
+@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+@media (prefers-reduced-motion: reduce) { .indet::after { animation: none; width: 100%; opacity: .4; } .ring .val, .bar > i { transition: none; } }
+.ai-block { display: grid; gap: 10px; }
+.items { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.item { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; }
+.item-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.prio { font-family: var(--f-mono); font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; padding: 2px 7px; border-radius: 5px; }
+.prio.high { background: var(--bad-soft); color: var(--bad); }
+.prio.medium { background: var(--warn-soft); color: var(--warn); }
+.prio.low { background: var(--surface-2); color: var(--muted); }
+.quote { font-size: .85rem; color: var(--muted); border-left: 3px solid var(--line); padding-left: 10px; }
+.rewrite { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 620px) { .rewrite { grid-template-columns: minmax(0, 1fr); } }
+.rw { border-radius: 8px; padding: 10px 12px; font-size: .88rem; background: var(--surface-2); min-width: 0; }
+.rw.new { background: var(--good-soft); }
+.rw .eyebrow { display: block; margin-bottom: 4px; }
+.flag { font-size: .82rem; background: var(--warn-soft); color: var(--warn); border-radius: 8px; padding: 6px 10px; }
+.ph { background: var(--mark); color: var(--mark-ink); border-radius: 4px; padding: 0 3px; font-family: var(--f-mono); font-size: .82em; }
+.copy-area { font-family: var(--f-mono); font-size: .75rem; min-height: 200px; }
+.limits { font-size: .88rem; display: grid; gap: 8px; }
+.limits ul, .limits ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: .88rem; z-index: 20; max-width: calc(100% - 32px); }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="logo" aria-hidden="true">R</div>
+    <div>
+      <h1>ResumeLens</h1>
+      <p class="muted small">Compare your resume with a job description and see where it stands.</p>
+    </div>
+    <span class="eyebrow tag">Score is an estimate</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="view view-start" id="view-start">
+  <section class="panel inputs" aria-labelledby="in-h">
+    <h2 id="in-h" class="eyebrow" style="font-family:var(--f-mono);font-weight:500">Inputs</h2>
+
+    <div class="field">
+      <div class="field-head"><h3>1. Your resume (PDF)</h3></div>
+      <label class="drop" id="drop" for="file">
+        <input type="file" id="file" accept="application/pdf,.pdf">
+        <strong>Choose a PDF or drop it here</strong>
+        <span class="muted small">Text-based PDF, up to 10 MB</span>
+      </label>
+      <div id="fileStatus" class="file-status" hidden></div>
+      <details id="textDetails">
+        <summary>Check or edit the extracted text</summary>
+        <p class="muted small" style="margin:8px 0">This is exactly what the analyzer reads. Fix anything the PDF reader got wrong, or paste your resume here if you don't have a PDF.</p>
+        <textarea id="resumeText" placeholder="Resume text appears here after you upload a PDF. You can also paste it directly."></textarea>
+      </details>
+    </div>
+
+    <div class="field">
+      <div class="field-head"><h3><label for="jd">2. Job description</label></h3><span class="counter" id="jdCount">0 words</span></div>
+      <textarea id="jd" placeholder="Paste the full job description: responsibilities, required skills, and preferred qualifications."></textarea>
+    </div>
+
+    <div id="formError" class="form-error" role="alert" hidden></div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="analyzeBtn">Analyze resume</button>
+      <button class="btn btn-ghost" id="clearBtn">Clear</button>
+    </div>
+    <p class="privacy">The keyword match runs entirely in this page. The Claude review sends your resume text and the job description to Claude on your own Claude account, after you allow it. No separate API key is needed.</p>
+  </section>
+
+  <aside class="panel howto" aria-labelledby="get-h">
+    <h2 id="get-h">What you'll get</h2>
+    <ul>
+      <li>A match score out of 100 with a breakdown of how it was calculated</li>
+      <li>Skills from the job description that are found and not found in your resume</li>
+      <li>Keyword coverage and a resume essentials checklist</li>
+      <li>Claude's suggestions and stronger project lines, based only on your resume</li>
+      <li>A report you can download</li>
+    </ul>
+    <button class="btn btn-ghost" id="exampleBtn">See an example analysis</button>
+  </aside>
+  </div>
+
+  <section class="results view" id="view-results" aria-label="Results" hidden>
+    <nav class="results-nav" aria-label="Page navigation">
+      <button class="btn btn-ghost btn-sm" id="backBtn">← Back to inputs</button>
+      <span class="muted small who" id="resultsFor"></span>
+      <button class="btn btn-primary btn-sm" id="newBtn">New analysis</button>
+    </nav>
+    <div class="banner" id="exampleBanner">
+      <span><b>Example analysis.</b> This uses a made-up sample resume. Upload your own resume to analyze it.</span>
+      <button class="btn btn-ghost btn-sm" id="loadSampleBtn">Put the sample in the form</button>
+    </div>
+
+    <ol class="steps" id="steps" aria-label="Progress"></ol>
+
+    <div class="panel" aria-labelledby="score-h">
+      <div class="field-head"><h2 id="score-h">Match score</h2><span id="bandPill" class="band info">—</span></div>
+      <div class="score-grid">
+        <div class="ring" role="img" id="ringWrap" aria-label="Match score">
+          <svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="52" fill="none" stroke-width="11"/><circle class="val" id="ringVal" cx="60" cy="60" r="52" fill="none" stroke="var(--accent)" stroke-width="11" stroke-linecap="round" stroke-dasharray="326.73" stroke-dashoffset="326.73"/></svg>
+          <div class="ring-label"><div><div class="ring-num" id="scoreNum">0</div><div class="ring-of">out of 100</div></div></div>
+        </div>
+        <div class="bars" id="bars"></div>
+      </div>
+      <p class="disclaimer"><b>This is an estimate, not a prediction.</b> It measures how much of the job description's wording appears in your resume text. It does not know how recruiters or a company's screening software will judge you, and a high score does not guarantee an interview or selection.</p>
+      <details class="howcalc">
+        <summary>How is this score calculated?</summary>
+        <div id="howCalc" class="howcalc"></div>
+      </details>
+    </div>
+
+    <div class="panel" aria-labelledby="skills-h">
+      <h2 id="skills-h">Skills</h2>
+      <div class="cols">
+        <div class="field">
+          <h3>Found in your resume <span class="muted small" id="hitCount"></span></h3>
+          <div class="chips" id="hitChips"></div>
+          <div id="aiHitWrap" hidden>
+            <p class="eyebrow" style="margin:10px 0 6px">Claude also found evidence for</p>
+            <div class="chips" id="aiHitChips"></div>
+          </div>
+        </div>
+        <div class="field">
+          <h3>Not found in your resume <span class="muted small" id="missCount"></span></h3>
+          <p class="explain"><b>"Not found" does not mean you lack the skill.</b> It only means the word isn't in your resume text. Mark each one honestly: if you have it, add it to your resume with proof (a project or course). If you don't, it goes on your learning list.</p>
+          <div class="miss-list" id="missList"></div>
+          <div id="projection" class="projection" hidden></div>
+        </div>
+      </div>
+      <div class="field" id="otherWrap">
+        <h3>Other skills on your resume</h3>
+        <p class="muted small">Listed on your resume but not asked for in this job description.</p>
+        <div class="chips" id="otherChips"></div>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="panel" aria-labelledby="kw-h">
+        <h2 id="kw-h">Job description keywords</h2>
+        <p class="muted small">The most repeated meaningful words in the job description, and whether your resume uses them.</p>
+        <div class="chips" id="kwChips"></div>
+      </div>
+      <div class="panel" aria-labelledby="ess-h">
+        <h2 id="ess-h">Resume essentials</h2>
+        <ul class="checks" id="checks"></ul>
+      </div>
+    </div>
+
+    <div class="panel" aria-labelledby="ai-h" id="aiPanel">
+      <div class="field-head"><h2 id="ai-h">Claude's review</h2><span class="band info" id="aiPill">Not run</span></div>
+      <div id="aiBody"></div>
+    </div>
+
+    <div class="panel" aria-labelledby="dl-h">
+      <h2 id="dl-h">Download your report</h2>
+      <p class="muted small">Includes the score breakdown, skills, the skills you marked, and Claude's suggestions.</p>
+      <div class="actions">
+        <button class="btn btn-primary" id="dlHtml">Download report (.html)</button>
+        <button class="btn btn-ghost" id="dlMd">Download as Markdown (.md)</button>
+        <button class="btn btn-ghost" id="copyMd">Copy report text</button>
+      </div>
+      <textarea id="copyArea" class="copy-area" hidden readonly aria-label="Report text"></textarea>
+    </div>
+
+    <div class="panel limits" aria-labelledby="lim-h">
+      <h2 id="lim-h">How to read these results</h2>
+      <ul>
+        <li><b>Scanned or image-only PDFs</b> have no readable text. Export your resume from Word, Google Docs, or LaTeX as a PDF, or paste the text into the box on the left.</li>
+        <li><b>Skill matching uses a fixed list</b> of about 120 common tech and soft skills with their usual spellings (for example "JS" counts as JavaScript). Rare tools may be missed; Claude's review can catch some of these.</li>
+        <li><b>Exact wording matters to the keyword match.</b> "Built REST endpoints" won't count as "API design". The match can't judge depth or quality.</li>
+        <li><b>Claude can make mistakes.</b> It is told to use only what's in your resume, and the page checks its quotes against your text, but read every suggestion before you copy it. Fill every <span class="ph">[placeholder]</span> with your real numbers or remove it.</li>
+        <li><b>Never add a skill you don't have</b> just to raise the score. Interviewers ask about everything on your resume.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+// ---------- Skill dictionary: [display name, category, alias regex fragments] ----------
+const SKILL_DEFS = [
+  ["Python","Languages",["python"]],["Java","Languages",["java(?!\\s*script)"]],["JavaScript","Languages",["javascript","js","es6"]],
+  ["TypeScript","Languages",["typescript"]],["C","Languages",["c(?![+#])(?=\\s*(?:,|/|\\)|programming|language|and\\b|\\|))"]],["C++","Languages",["c\\+\\+","cpp"]],
+  ["C#","Languages",["c#","c sharp"]],["Go","Languages",["golang","go(?= ?(?:lang|programming))"]],["Rust","Languages",["rust"]],["Kotlin","Languages",["kotlin"]],
+  ["Swift","Languages",["swift"]],["PHP","Languages",["php"]],["Ruby","Languages",["ruby"]],["R","Languages",["r(?= ?(?:programming|language|studio))","rstudio"]],
+  ["MATLAB","Languages",["matlab"]],["Scala","Languages",["scala"]],["SQL","Languages",["sql"]],["Bash / Shell","Languages",["bash","shell scripting","shell"]],
+  ["HTML","Web",["html5?"]],["CSS","Web",["css3?"]],["React","Web",["react(?:\\.?js)?(?! native)"]],["Angular","Web",["angular(?:js)?"]],["Vue.js","Web",["vue(?:\\.?js)?"]],
+  ["Next.js","Web",["next\\.?js"]],["Node.js","Web",["node\\.?js"]],["Express.js","Web",["express\\.?js","express framework","express(?=\\s*(?:[.,;)/]|$))"]],["Django","Web",["django"]],
+  ["Flask","Web",["flask"]],["Spring Boot","Web",["spring ?boot","spring framework"]],["FastAPI","Web",["fast ?api"]],["Tailwind CSS","Web",["tailwind(?: ?css)?"]],
+  ["Bootstrap","Web",["bootstrap"]],["REST APIs","Web",["restful(?: ?apis?)?","rest ?apis?"]],["GraphQL","Web",["graphql"]],["jQuery","Web",["jquery"]],
+  [".NET","Web",["\\.net","asp\\.net","dotnet"]],["Redux","Web",["redux"]],
+  ["Machine Learning","Data & AI",["machine learning","ml"]],["Deep Learning","Data & AI",["deep learning"]],["NLP","Data & AI",["nlp","natural language processing"]],
+  ["Computer Vision","Data & AI",["computer vision"]],["TensorFlow","Data & AI",["tensorflow"]],["PyTorch","Data & AI",["pytorch"]],["Keras","Data & AI",["keras"]],
+  ["scikit-learn","Data & AI",["scikit[- ]?learn","sklearn"]],["Pandas","Data & AI",["pandas"]],["NumPy","Data & AI",["numpy"]],["Matplotlib","Data & AI",["matplotlib","seaborn"]],
+  ["OpenCV","Data & AI",["opencv"]],["Data Analysis","Data & AI",["data analysis","data analytics"]],["Data Visualization","Data & AI",["data visuali[sz]ation"]],
+  ["Power BI","Data & AI",["power ?bi"]],["Tableau","Data & AI",["tableau"]],["Excel","Data & AI",["excel","ms excel"]],["Statistics","Data & AI",["statistics","statistical"]],
+  ["LLMs / GenAI","Data & AI",["llms?","large language models?","generative ai","gen ?ai"]],["Apache Spark","Data & AI",["apache spark","pyspark","spark"]],["Hadoop","Data & AI",["hadoop"]],
+  ["MySQL","Databases",["mysql"]],["PostgreSQL","Databases",["postgres(?:ql)?"]],["MongoDB","Databases",["mongo(?:db)?"]],["SQLite","Databases",["sqlite"]],
+  ["Redis","Databases",["redis"]],["Oracle","Databases",["oracle"]],["Firebase","Databases",["firebase"]],["NoSQL","Databases",["nosql"]],
+  ["AWS","Cloud & DevOps",["aws","amazon web services"]],["Azure","Cloud & DevOps",["azure"]],["Google Cloud","Cloud & DevOps",["gcp","google cloud"]],
+  ["Docker","Cloud & DevOps",["docker"]],["Kubernetes","Cloud & DevOps",["kubernetes","k8s"]],["CI/CD","Cloud & DevOps",["ci ?/ ?cd","continuous integration","github actions"]],
+  ["Jenkins","Cloud & DevOps",["jenkins"]],["Git","Cloud & DevOps",["git(?!hub|lab)"]],["GitHub","Cloud & DevOps",["github"]],["Linux","Cloud & DevOps",["linux","unix"]],
+  ["Terraform","Cloud & DevOps",["terraform"]],["Nginx","Cloud & DevOps",["nginx"]],
+  ["Data Structures","CS Fundamentals",["data structures?","dsa"]],["Algorithms","CS Fundamentals",["algorithms?"]],["OOP","CS Fundamentals",["oops?","object[- ]oriented"]],
+  ["DBMS","CS Fundamentals",["dbms","database management"]],["Operating Systems","CS Fundamentals",["operating systems?"]],["Computer Networks","CS Fundamentals",["computer networks?","networking"]],
+  ["System Design","CS Fundamentals",["system design"]],["Microservices","CS Fundamentals",["microservices?"]],
+  ["Android","Mobile",["android"]],["iOS","Mobile",["ios"]],["Flutter","Mobile",["flutter"]],["React Native","Mobile",["react native"]],
+  ["Unit Testing","Testing",["unit test(?:ing|s)?"]],["JUnit","Testing",["junit"]],["Selenium","Testing",["selenium"]],["Jest","Testing",["jest"]],["PyTest","Testing",["pytest"]],
+  ["Agile / Scrum","Practices & Tools",["agile","scrum"]],["Jira","Practices & Tools",["jira"]],["Figma","Practices & Tools",["figma"]],["Postman","Practices & Tools",["postman"]],
+  ["Communication","Soft skills",["communication"]],["Teamwork","Soft skills",["team ?work","team player","collaborat(?:ion|e|ive|ed)"]],
+  ["Problem Solving","Soft skills",["problem[- ]solving"]],["Leadership","Soft skills",["leadership","led a team"]],["Time Management","Soft skills",["time management"]]
+];
+const SKILLS = SKILL_DEFS.map(([name, cat, aliases]) => ({ name, cat, re: new RegExp("(?<![a-z0-9])(?:" + aliases.join("|") + ")(?![a-z0-9])", "i") }));
+
+const STOP = new Set(("a about above after again against all also am an and any are as at be because been before being below between both but by can could did do does doing down during each few for from further had has have having he her here hers him his how i if in into is it its itself just me more most my no nor not now of off on once only or other our ours out over own same she should so some such than that the their theirs them then there these they this those through to too under until up very was we were what when where which while who whom why will with would you your yours within across etc via per "
+ + "ability able responsible responsibilities requirement requirements required preferred qualification qualifications candidate candidates role roles position job work working company team teams year years experience experienced strong good excellent great knowledge understanding skills skill must plus bonus nice including include includes using use used new opportunity looking join well based level related relevant equivalent minimum least degree field like make ensure help across environment day days time part full apply etc. e.g. i.e. want need needs will join us our we you're who what's hiring facing looking seeking ideal").split(/\s+/));
+
+const SAMPLE_RESUME = `Priya Nair (sample resume)
+priya.sample@example.com | +91 98765 43210 | github.com/sample-priya
+
+EDUCATION
+B.Tech in Computer Science and Engineering, Sample Institute of Technology, 2022-2026. CGPA: 8.4/10
+
+TECHNICAL SKILLS
+Languages: Python, Java, JavaScript, SQL
+Web: React, HTML, CSS, Node.js, Express.js
+Databases: MySQL, MongoDB
+Tools: Git, GitHub, Postman, VS Code
+Coursework: Data Structures, Algorithms, DBMS, Operating Systems, OOP
+
+PROJECTS
+Campus Canteen Ordering App (React, Node.js, MongoDB)
+- Built a web app where students order food from the campus canteen.
+- Made a login system and an order history page.
+- Worked on the backend with Express.js and REST APIs.
+
+Movie Recommendation System (Python, Pandas, scikit-learn)
+- Made a movie recommender using collaborative filtering on the MovieLens dataset.
+- Cleaned data with Pandas and evaluated results.
+
+EXPERIENCE
+Web Development Intern, Sample Startup Pvt Ltd (May 2025 - July 2025)
+- Fixed bugs in the company dashboard and added 3 new React components.
+- Worked with the team in weekly sprints.
+
+ACHIEVEMENTS
+- Solved 250+ problems on LeetCode.
+- Coordinator, college coding club; organized a hackathon with 120 participants.`;
+
+const SAMPLE_JD = `Software Engineer - Graduate Trainee (Full Stack)
+
+About the role
+We are hiring graduate engineers to build and maintain customer-facing web applications.
+
+Responsibilities
+- Develop features for our web platform using React and TypeScript on the frontend.
+- Build and maintain REST APIs with Node.js and Express.
+- Write unit tests and take part in code reviews.
+- Work with PostgreSQL databases and write efficient SQL queries.
+- Collaborate with product managers and designers in an Agile team.
+
+Requirements
+- B.E./B.Tech in Computer Science or related field (2026 graduates).
+- Strong foundation in data structures, algorithms and OOP.
+- Hands-on experience with JavaScript, React, and Node.js.
+- Familiarity with Git and GitHub.
+- Good communication and problem-solving skills.
+
+Nice to have
+- Experience with Docker and AWS.
+- Exposure to CI/CD pipelines.`;
+
+// ---------- State ----------
+const state = { resumeText: "", fileName: "", pages: 0, jd: "", local: null, ai: null, aiStatus: "idle", aiError: "", marks: {}, isExample: true, stepStates: {} };
+let sampleFn = null, downloadsApi = null, aiController = null;
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9+#]+/g, " ").replace(/\s+/g, " ").trim();
+const words = (s) => (String(s).trim().match(/\S+/g) || []).length;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 3200); }
+
+// ---------- Local analysis ----------
+const PREF_RE = /prefer|nice[- ]to[- ]have|good[- ]to[- ]have|bonus|\bplus\b|desirable|advantage|optional/i;
+const REQ_HEAD_RE = /require|must|qualification|responsib|what you|you will|skills|about the role|basic/i;
+
+function jdLines(jd) {
+  let section = "required";
+  return jd.split(/\n+/).flatMap((line) => line.split(/(?<=[.;])\s+/)).map((raw) => {
+    const line = raw.trim(); if (!line) return null;
+    const isHead = words(line) <= 6 && !/^[-•*]/.test(line) && (/:$/.test(line) || !/[.,]/.test(line));
+    if (isHead) { if (PREF_RE.test(line)) section = "preferred"; else if (REQ_HEAD_RE.test(line)) section = "required"; }
+    return { line, preferred: section === "preferred" || PREF_RE.test(line) };
+  }).filter(Boolean);
+}
+
+function stem(w) { if (w.length > 5 && w.endsWith("ies")) return w.slice(0, -3) + "y"; if (w.length > 5 && w.endsWith("ing")) return w.slice(0, -3); if (w.length > 4 && w.endsWith("ed")) return w.slice(0, -2); if (w.length > 3 && w.endsWith("s") && !w.endsWith("ss")) return w.slice(0, -1); return w; }
+
+function topKeywords(jd, n = 20) {
+  const counts = new Map(), first = new Map();
+  (jd.toLowerCase().match(/[a-z][a-z+#.]{2,}/g) || []).forEach((w, i) => {
+    w = w.replace(/\.+$/, ""); if (w.length < 4 || STOP.has(w) || SKILLS.some((k) => k.re.test(w))) return;
+    const s = stem(w); counts.set(s, (counts.get(s) || 0) + 1); if (!first.has(s)) first.set(s, { i, w });
+  });
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || first.get(a[0]).i - first.get(b[0]).i).slice(0, n).map(([s, c]) => ({ stem: s, word: first.get(s).w, count: c }));
+}
+
+function essentials(resume) {
+  const t = resume.toLowerCase();
+  const quant = (resume.match(/\d[\d,.]*\s?(%|\+|x\b|k\b|users|students|participants|members|ms\b|seconds|hours|requests|problems|components|customers|downloads)/gi) || []).length;
+  return [
+    { name: "Contact details", ok: /[\w.+-]+@[\w-]+\.[\w.]+/.test(resume) || /\+?\d[\d\s-]{8,}\d/.test(resume) ? 1 : 0, tip: "An email address or phone number so recruiters can reach you." },
+    { name: "Education section", ok: /education|b\.?\s?tech|\bb\.?e\.?\b|bachelor|degree|university|college|cgpa|\bgpa\b/.test(t) ? 1 : 0, tip: "Your degree, college and graduation year." },
+    { name: "Projects or experience", ok: /projects?\b|experience|internship/.test(t) ? 1 : 0, tip: "A projects, internship or experience section." },
+    { name: "Skills section", ok: /\b(technical )?skills\b/.test(t) ? 1 : 0, tip: "A clear skills section helps both people and screening software find keywords." },
+    { name: "Measurable results", ok: quant >= 2 ? 1 : quant === 1 ? 0.5 : 0, tip: quant ? `Found ${quant} number${quant > 1 ? "s" : ""} tied to results. Two or more is better.` : "No numbers tied to results found (e.g. users, %, time saved). Add real figures where you have them." }
+  ];
+}
+
+function analyzeLocal(resume, jd) {
+  const r = resume.toLowerCase(), lines = jdLines(jd);
+  const jdSkills = SKILLS.map((s) => {
+    const mentions = lines.filter((l) => s.re.test(l.line)); if (!mentions.length) return null;
+    const preferred = mentions.every((m) => m.preferred);
+    const weight = (preferred ? 0.5 : 1) * (s.cat === "Soft skills" ? 0.5 : 1);
+    return { name: s.name, cat: s.cat, preferred, weight, found: s.re.test(r) };
+  }).filter(Boolean);
+  const resumeSkills = SKILLS.filter((s) => s.re.test(r)).map((s) => s.name);
+  const other = resumeSkills.filter((n) => !jdSkills.some((j) => j.name === n));
+  const resumeStems = new Set((r.match(/[a-z][a-z+#.]{2,}/g) || []).map((w) => stem(w.replace(/\.+$/, ""))));
+  const kws = topKeywords(jd).map((k) => ({ ...k, found: resumeStems.has(k.stem) }));
+  const ess = essentials(resume);
+  return { jdSkills, other, kws, ess };
+}
+
+function computeScore(local, marks = {}, project = false) {
+  const totalW = local.jdSkills.reduce((a, s) => a + s.weight, 0);
+  const foundW = local.jdSkills.reduce((a, s) => a + ((s.found || (project && marks[s.name] === "have")) ? s.weight : 0), 0);
+  const hasSkills = local.jdSkills.length > 0;
+  const skillMax = hasSkills ? 60 : 0, kwMax = hasSkills ? 25 : 85;
+  const skillPts = hasSkills ? (skillMax * foundW) / totalW : 0;
+  const kwFound = local.kws.filter((k) => k.found).length;
+  const kwPts = local.kws.length ? (kwMax * kwFound) / local.kws.length : 0;
+  const essPts = local.ess.reduce((a, e) => a + e.ok * 3, 0);
+  return { total: Math.round(skillPts + kwPts + essPts), skillPts, skillMax, kwPts, kwMax, essPts, essMax: 15, kwFound, hasSkills };
+}
+function band(score) { return score >= 80 ? ["Strong match", "good"] : score >= 60 ? ["Good match", "good"] : score >= 40 ? ["Partial match", "warn"] : ["Low match", "bad"]; }
+
+// ---------- Steps ----------
+const STEPS = [["read", "Read resume"], ["jd", "Job description"], ["match", "Keyword match"], ["ai", "Claude review"]];
+const STEP_LABEL = { idle: "Waiting", active: "In progress", done: "Done", error: "Needs attention", skipped: "Skipped" };
+function setStep(id, s) { state.stepStates[id] = s; renderSteps(); }
+function renderSteps() {
+  $("steps").innerHTML = STEPS.map(([id, nm]) => { const s = state.stepStates[id] || "idle"; return `<li class="step" data-s="${s}"><span class="st">${STEP_LABEL[s]}</span><span class="nm">${nm}</span></li>`; }).join("");
+}
+
+// ---------- Rendering ----------
+function render() {
+  const L = state.local; if (!L) return;
+  const sc = computeScore(L, state.marks);
+  $("exampleBanner").hidden = !state.isExample;
+  $("resultsFor").textContent = state.isExample ? "Example: sample resume" : "Results for " + state.fileName;
+  const [bl, bc] = band(sc.total);
+  $("bandPill").textContent = bl; $("bandPill").className = "band " + bc;
+  const C = 2 * Math.PI * 52;
+  requestAnimationFrame(() => { $("ringVal").style.strokeDashoffset = String(C * (1 - sc.total / 100)); });
+  $("ringVal").setAttribute("stroke", bc === "good" ? "var(--good)" : bc === "warn" ? "var(--warn)" : "var(--bad)");
+  $("scoreNum").textContent = sc.total;
+  $("ringWrap").setAttribute("aria-label", `Match score ${sc.total} out of 100, ${bl}`);
+  const hits = L.jdSkills.filter((s) => s.found), miss = L.jdSkills.filter((s) => !s.found);
+  const bar = (label, v, max, note) => `<div class="bar-row"><div class="bar-top"><span>${label}<br><span class="muted small">${note}</span></span><b>${v.toFixed(1)} / ${max}</b></div><div class="bar"><i style="width:${max ? (100 * v) / max : 0}%"></i></div></div>`;
+  $("bars").innerHTML =
+    (sc.hasSkills ? bar("Skills match", sc.skillPts, sc.skillMax, `${hits.length} of ${L.jdSkills.length} skills from the job description found`) : "") +
+    bar("Keyword coverage", sc.kwPts, sc.kwMax, `${sc.kwFound} of ${L.kws.length} top job-description words found`) +
+    bar("Resume essentials", sc.essPts, sc.essMax, `${L.ess.filter((e) => e.ok === 1).length} of ${L.ess.length} checks passed`);
+  $("howCalc").innerHTML = `<p>The score adds up three parts. It is calculated by this page with fixed rules, so the same inputs always give the same score. Claude's review does not change it.</p><ul>
+    ${sc.hasSkills ? `<li><b>Skills match (60 points).</b> The page looks for about 120 known skills in the job description, then checks which appear in your resume. Required skills count fully; skills listed under "preferred" or "nice to have" count half; soft skills count half.</li>` : `<li><b>Skills match.</b> No known skills were detected in this job description, so those 60 points moved to keyword coverage.</li>`}
+    <li><b>Keyword coverage (${sc.kwMax} points).</b> The ${L.kws.length} most repeated meaningful words in the job description (common filler words removed). Each one found in your resume earns an equal share. Word endings are ignored, so "developing" matches "develop".</li>
+    <li><b>Resume essentials (15 points).</b> Five checks worth 3 points each: contact details, education, projects or experience, a skills section, and measurable results.</li></ul>
+    <p class="muted">Bands: 80+ strong, 60-79 good, 40-59 partial, below 40 low. These are rough guides for comparing versions of your own resume, not cut-offs any employer uses.</p>`;
+
+  $("hitCount").textContent = `(${hits.length})`; $("missCount").textContent = `(${miss.length})`;
+  const pref = (s) => (s.preferred ? `<span class="pref">preferred</span>` : "");
+  $("hitChips").innerHTML = hits.length ? hits.map((s) => `<span class="chip hit">${esc(s.name)}${pref(s)}</span>`).join("") : `<p class="muted small">None of the job description's listed skills were found in your resume text.</p>`;
+  const notes = state.ai?.missing_skill_notes || [];
+  $("missList").innerHTML = miss.length ? miss.map((s) => {
+    const m = state.marks[s.name] || "";
+    const n = notes.find((x) => norm(x.skill) === norm(s.name));
+    const noteHtml = n ? `<p class="ai-note">${n.status === "related_experience" ? "<b>Related experience:</b> " : "<b>Claude:</b> "}${esc(n.note)}${n.evidenceOk ? ` <q>${esc(n.evidence)}</q>` : ""}</p>` : "";
+    return `<div class="miss"><div class="miss-top"><span class="miss-name">${esc(s.name)}${pref(s)}</span>
+      <span class="seg" role="group" aria-label="Do you have ${esc(s.name)}?"><button class="have" data-skill="${esc(s.name)}" data-v="have" aria-pressed="${m === "have"}">I have this</button><button class="lack" data-skill="${esc(s.name)}" data-v="lack" aria-pressed="${m === "lack"}">Need to learn</button></span></div>${noteHtml}</div>`;
+  }).join("") : `<p class="muted small">Every skill detected in the job description appears in your resume.</p>`;
+  const haveN = miss.filter((s) => state.marks[s.name] === "have").length;
+  if (haveN) {
+    const proj = computeScore(L, state.marks, true).total;
+    $("projection").hidden = false;
+    $("projection").innerHTML = `You marked <b>${haveN}</b> skill${haveN > 1 ? "s" : ""} as ones you have. If you add ${haveN > 1 ? "them" : "it"} to your resume with real evidence, the estimate would be about <b>${proj}/100</b>. Only add what you can discuss in an interview.`;
+  } else $("projection").hidden = true;
+
+  const aiHits = state.ai?.extra_matched_skills?.filter((x) => x.evidenceOk) || [];
+  $("aiHitWrap").hidden = !aiHits.length;
+  $("aiHitChips").innerHTML = aiHits.map((x) => `<span class="chip ai" title="${esc(x.evidence)}">${esc(x.skill)}</span>`).join("");
+  $("otherWrap").hidden = !L.other.length;
+  $("otherChips").innerHTML = L.other.map((n) => `<span class="chip">${esc(n)}</span>`).join("");
+  $("kwChips").innerHTML = L.kws.map((k) => `<span class="chip ${k.found ? "hit" : ""}" title="Appears ${k.count}× in the job description">${k.found ? "✓ " : ""}${esc(k.word)}</span>`).join("") + `<p class="muted small" style="width:100%;margin-top:6px">Highlighted words appear in your resume.</p>`;
+  $("checks").innerHTML = L.ess.map((e) => `<li><span class="dot ${e.ok === 1 ? "ok" : e.ok ? "half" : "no"}" aria-hidden="true">${e.ok === 1 ? "✓" : e.ok ? "½" : "✕"}</span><span><b>${e.name}</b><br><span class="muted small">${esc(e.tip)}</span></span><span class="pts">${e.ok * 3}/3</span></li>`).join("");
+  renderAI();
+}
+
+function placeholders(s) { return esc(s).replace(/\[([^\]]{1,120})\]/g, '<span class="ph">[$1]</span>'); }
+
+function renderAI() {
+  const body = $("aiBody"), pill = $("aiPill");
+  const st = state.aiStatus;
+  const pills = { idle: ["Not run", "info"], running: ["Working", "info"], done: ["Done", "good"], error: ["Not completed", "warn"], unavailable: ["Unavailable here", "warn"] };
+  pill.textContent = pills[st][0]; pill.className = "band " + pills[st][1];
+  if (st === "idle") {
+    body.innerHTML = state.isExample
+      ? `<p class="muted">Claude reads your resume and the job description, then suggests specific improvements and stronger project bullet points, using only what your resume already says.</p><div class="actions"><button class="btn btn-ghost" id="aiExampleBtn">Run Claude's review on the example</button></div>`
+      : `<p class="muted">Claude's review starts automatically when you click Analyze.</p>`;
+    $("aiExampleBtn")?.addEventListener("click", () => runAI());
+    return;
+  }
+  if (st === "unavailable") { body.innerHTML = `<p class="muted">Claude isn't available in this view (for example, the page is open outside claude.ai or Claude access was not allowed). The score, skills and keyword results above still work. Open this page in claude.ai while signed in to get Claude's suggestions.</p>`; return; }
+  if (st === "running") {
+    body.innerHTML = `<div class="ai-status"><div class="indet" aria-hidden="true"></div><p id="aiProgress" class="muted small">Claude is reading your resume. The first words usually take 10 to 60 seconds. If a permission prompt appears, allow it to continue.</p><div><button class="btn btn-ghost btn-sm" id="aiStop">Stop</button></div></div>`;
+    $("aiStop").onclick = () => aiController?.abort();
+    return;
+  }
+  if (st === "error") { body.innerHTML = `<p class="form-error">${esc(state.aiError)}</p><div class="actions"><button class="btn btn-ghost" id="aiRetry">Try Claude's review again</button></div>`; $("aiRetry").onclick = () => runAI(true); return; }
+  const a = state.ai;
+  const strengths = (a.strengths || []).map((s) => `<li class="item"><b>${esc(s.point)}</b>${s.evidenceOk ? `<p class="quote">From your resume: "${esc(s.evidence)}"</p>` : `<p class="muted small">No exact quote matched your resume. Check this one yourself.</p>`}</li>`).join("");
+  const imps = (a.improvements || []).map((i) => `<li class="item"><div class="item-top"><span class="prio ${esc(i.priority)}">${esc(i.priority)}</span><span class="eyebrow">${esc(i.section)}</span></div><b>${esc(i.issue)}</b><p>${placeholders(i.suggestion)}</p></li>`).join("");
+  const rws = (a.project_rewrites || []).map((r) => `<li class="item"><div class="rewrite"><div class="rw"><span class="eyebrow">Your current line</span>${esc(r.original)}</div><div class="rw new"><span class="eyebrow">Suggested version</span>${placeholders(r.improved)}</div></div><p class="muted small">${esc(r.why)}</p>${r.flags.map((f) => `<p class="flag">${esc(f)}</p>`).join("")}</li>`).join("");
+  const kw = (a.keywords_to_add_if_true || []).map((k) => `<span class="chip">${esc(k)}</span>`).join("");
+  body.innerHTML = `<div class="ai-block">
+    <p>${esc(a.summary)}</p>
+    ${strengths ? `<h3>What already works</h3><ul class="items">${strengths}</ul>` : ""}
+    ${imps ? `<h3>Suggested improvements</h3><ul class="items">${imps}</ul>` : ""}
+    ${rws ? `<h3>Stronger project and experience lines</h3><p class="muted small">Same facts, clearer wording. Highlighted <span class="ph">[placeholders]</span> need your real numbers. Delete them if you don't have a figure.</p><ul class="items">${rws}</ul>` : ""}
+    ${kw ? `<h3>Job description terms to add, only if true for you</h3><div class="chips">${kw}</div>` : ""}
+    <p class="muted small">Claude can be wrong. Every suggestion uses only what your resume says, but read each one before you use it.</p>
+    <div><button class="btn btn-ghost btn-sm" id="aiRegen">Get a fresh review</button></div></div>`;
+  $("aiRegen").onclick = () => runAI(true);
+}
+
+// ---------- Claude review ----------
+function buildPrompt(resume, jd, L) {
+  const miss = L.jdSkills.filter((s) => !s.found).map((s) => s.name);
+  const hit = L.jdSkills.filter((s) => s.found).map((s) => s.name);
+  return `You are a careful resume reviewer helping a computer science student apply for a job.
+
+STRICT RULES
+- Use ONLY facts written in the RESUME below. Never invent qualifications, projects, employers, dates, metrics, technologies, or skills.
+- Every "evidence" and "original" value must be copied word-for-word from the RESUME (a short exact phrase or sentence). If you have no exact quote, use "".
+- In rewrites, keep the same facts and technologies as the original line. Improve wording, add a strong action verb, and make the impact clearer. Where a number would help but the resume does not give one, insert a bracketed placeholder such as [number of users] or [X%] for the student to fill in. Never write a made-up number.
+- A skill missing from the resume text does not mean the student lacks it. Say "not mentioned in the resume", never "you lack".
+- Be specific and practical. Plain English, short sentences.
+
+KEYWORD CHECK ALREADY DONE BY THE PAGE
+Skills from the job description found in the resume: ${hit.join(", ") || "none"}
+Skills from the job description NOT found in the resume text: ${miss.join(", ") || "none"}
+
+Reply with ONLY one JSON object in this exact shape:
+{
+  "summary": "2-3 sentences on how well the resume fits this job, based only on the resume",
+  "strengths": [{"point": "a real strength for this job", "evidence": "exact quote from resume"}],
+  "missing_skill_notes": [{"skill": "a name from the NOT found list", "status": "related_experience" or "no_evidence", "note": "one sentence; if related, name the related thing the resume does mention", "evidence": "exact quote or empty"}],
+  "extra_matched_skills": [{"skill": "a requirement from the job description the keyword check missed", "evidence": "exact quote from resume showing it"}],
+  "improvements": [{"section": "Summary|Skills|Projects|Experience|Education|Formatting|Other", "priority": "high|medium|low", "issue": "what is weak", "suggestion": "what to do, concretely"}],
+  "project_rewrites": [{"original": "exact project or experience line from resume", "improved": "rewritten line", "why": "one short sentence"}],
+  "keywords_to_add_if_true": ["job description terms the student could add only if they genuinely have them"]
+}
+Limits: up to 4 strengths, one missing_skill_notes entry per NOT found skill (max 12), up to 4 extra_matched_skills, 4-7 improvements ordered by priority, up to 3 project_rewrites (pick the weakest lines), up to 8 keywords.
+
+JOB DESCRIPTION
+"""
+${jd.slice(0, 8000)}
+"""
+
+RESUME
+"""
+${resume.slice(0, 14000)}
+"""`;
+}
+
+function verifyAI(raw, resume) {
+  const R = norm(resume);
+  const inResume = (q) => { const n = norm(q); return n.length >= 6 && R.includes(n); };
+  const arr = (x) => (Array.isArray(x) ? x : []);
+  const str = (x) => (typeof x === "string" ? x.trim() : "");
+  const resumeSkillNames = new Set(SKILLS.filter((s) => s.re.test(resume)).map((s) => s.name));
+  const out = {
+    summary: str(raw?.summary) || "Claude returned no summary.",
+    strengths: arr(raw?.strengths).slice(0, 4).map((s) => ({ point: str(s?.point), evidence: str(s?.evidence) })).filter((s) => s.point).map((s) => ({ ...s, evidenceOk: inResume(s.evidence) })),
+    missing_skill_notes: arr(raw?.missing_skill_notes).slice(0, 12).map((m) => ({ skill: str(m?.skill), status: m?.status === "related_experience" ? "related_experience" : "no_evidence", note: str(m?.note), evidence: str(m?.evidence) })).filter((m) => m.skill && m.note).map((m) => ({ ...m, evidenceOk: inResume(m.evidence) })),
+    extra_matched_skills: arr(raw?.extra_matched_skills).slice(0, 4).map((m) => ({ skill: str(m?.skill), evidence: str(m?.evidence) })).filter((m) => m.skill).map((m) => ({ ...m, evidenceOk: inResume(m.evidence) })),
+    improvements: arr(raw?.improvements).slice(0, 7).map((i) => ({ section: str(i?.section) || "Other", priority: ["high", "medium", "low"].includes(i?.priority) ? i.priority : "medium", issue: str(i?.issue), suggestion: str(i?.suggestion) })).filter((i) => i.issue || i.suggestion),
+    project_rewrites: arr(raw?.project_rewrites).slice(0, 3).map((r) => ({ original: str(r?.original), improved: str(r?.improved), why: str(r?.why) })).filter((r) => r.original && r.improved).map((r) => {
+      const flags = [];
+      if (!inResume(r.original)) flags.push("This original line didn't match your resume text exactly. Make sure it's really yours before using the rewrite.");
+      const newSkills = SKILLS.filter((s) => s.re.test(r.improved) && !s.re.test(r.original) && !resumeSkillNames.has(s.name)).map((s) => s.name);
+      if (newSkills.length) flags.push(`Mentions ${newSkills.join(", ")}, which isn't in your resume. Remove it unless you really used it.`);
+      const origNums = new Set(r.original.match(/\d+(?:\.\d+)?/g) || []);
+      const newNums = (r.improved.replace(/\[[^\]]*\]/g, "").match(/\d+(?:\.\d+)?/g) || []).filter((n) => !origNums.has(n));
+      if (newNums.length) flags.push(`Contains number${newNums.length > 1 ? "s" : ""} (${newNums.join(", ")}) not in your original line. Replace with your real figures or remove.`);
+      return { ...r, flags };
+    }),
+    keywords_to_add_if_true: arr(raw?.keywords_to_add_if_true).map(str).filter(Boolean).slice(0, 8)
+  };
+  return out;
+}
+
+const AI_ERRORS = {
+  not_granted: "Claude access wasn't allowed for this page, so the review was skipped. The score and skills above don't need Claude.",
+  sampling_disabled: "Claude isn't available for this account.",
+  rate_limited: "Claude is busy or you've reached a usage limit. Wait a minute, then try again.",
+  session_expired: "Your Claude session expired. Sign in again, then try again.",
+  prompt_too_large: "The resume and job description are too long for one review. Shorten the job description and try again.",
+  refused: "Claude declined to review this text. Check that the resume and job description contain normal resume content.",
+  invalid_json: "Claude's answer came back in an unexpected format. Try again.",
+  empty_completion: "Claude returned an empty answer. Try again.",
+  cancelled: "You stopped the review."
+};
+
+async function runAI(fresh = false) {
+  if (!state.local) return;
+  if (!sampleFn) { state.aiStatus = "unavailable"; setStep("ai", "skipped"); renderAI(); return; }
+  aiController?.abort();
+  const ctl = (aiController = new AbortController());
+  state.aiStatus = "running"; state.ai = null; setStep("ai", "active"); render();
+  try {
+    const raw = await sampleFn.json(buildPrompt(state.resumeText, state.jd, state.local), {
+      signal: ctl.signal, ...(fresh ? { cache: false } : {}),
+      onText: ({ text }) => { const p = $("aiProgress"); if (p) p.textContent = `Claude is writing the review… ${text.length.toLocaleString()} characters so far.`; }
+    });
+    if (ctl !== aiController) return;
+    state.ai = verifyAI(raw, state.resumeText); state.aiStatus = "done"; setStep("ai", "done");
+  } catch (e) {
+    if (ctl !== aiController) return;
+    const code = e?.code || "upstream_error";
+    if (["not_declared", "capability_disabled", "capability_removed"].includes(code)) { state.aiStatus = "unavailable"; setStep("ai", "skipped"); }
+    else { state.aiStatus = "error"; state.aiError = AI_ERRORS[code] || "The connection to Claude failed. Try again in a moment."; setStep("ai", code === "cancelled" ? "skipped" : "error"); }
+  }
+  render();
+}
+
+// ---------- PDF handling ----------
+function setFileStatus(kind, html) { const el = $("fileStatus"); el.hidden = !html; el.className = "file-status " + kind; el.innerHTML = html; }
+
+async function handleFile(file) {
+  if (!file) return;
+  setStep("read", "active");
+  const fail = (msg) => { setFileStatus("err", msg); setStep("read", "error"); };
+  if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") return fail(`<b>${esc(file.name)}</b> isn't a PDF. Save your resume as a PDF (File → Save as / Export → PDF) and upload that, or paste the text below.`);
+  if (file.size === 0) return fail("This file is empty. Choose your resume PDF again.");
+  if (file.size > 10 * 1024 * 1024) return fail(`This PDF is ${(file.size / 1048576).toFixed(1)} MB. Resumes are usually under 2 MB, so the limit here is 10 MB. Export a smaller PDF or paste the text below.`);
+  if (typeof pdfjsLib === "undefined") { $("textDetails").open = true; return fail("The PDF reader couldn't load (your network may be blocking it). Paste your resume text in the box below instead."); }
+  setFileStatus("ok", `Reading <b>${esc(file.name)}</b>…`);
+  try {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const head = new TextDecoder("latin1").decode(buf.slice(0, 1024));
+    if (!head.includes("%PDF-")) return fail(`<b>${esc(file.name)}</b> has a .pdf name but isn't a real PDF file. Export it again from your editor.`);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
+    let text = "";
+    const maxPages = Math.min(pdf.numPages, 10);
+    for (let p = 1; p <= maxPages; p++) {
+      const content = await (await pdf.getPage(p)).getTextContent();
+      text += content.items.map((it) => (it.str || "") + (it.hasEOL ? "\n" : " ")).join("") + "\n";
+    }
+    text = text.replace(/[ \t]+/g, " ").replace(/ ?\n ?/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    state.fileName = file.name; state.pages = pdf.numPages;
+    $("resumeText").value = text;
+    if (text.length < 150) {
+      $("textDetails").open = true;
+      setFileStatus("warn", `Only ${text.length} characters of text were found in <b>${esc(file.name)}</b>. It's probably a scanned or image-based PDF, which this app can't read. Export a text-based PDF from Word or Google Docs, or paste your resume text below.`);
+      setStep("read", "error"); return;
+    }
+    setFileStatus("ok", `<b>${esc(file.name)}</b>: read ${pdf.numPages} page${pdf.numPages > 1 ? "s" : ""}, ${words(text).toLocaleString()} words.${pdf.numPages > 10 ? " Only the first 10 pages were read." : ""} Open "Check or edit the extracted text" to review it.`);
+    setStep("read", "done");
+  } catch (e) {
+    const n = e?.name || "";
+    if (n === "PasswordException") fail("This PDF is password-protected. Save a copy without a password, or paste the text below.");
+    else if (n === "InvalidPDFException") fail("This PDF looks damaged and couldn't be opened. Export it again, or paste the text below.");
+    else fail("This PDF couldn't be read. Try exporting it again, or paste your resume text below.");
+    $("textDetails").open = true;
+  }
+}
+
+// ---------- Analyze ----------
+function validate() {
+  const errs = [], r = $("resumeText").value.trim(), jd = $("jd").value.trim();
+  if (!r) errs.push("Add your resume: upload a PDF, or paste the text under \"Check or edit the extracted text\".");
+  else if (r.length < 150) errs.push("The resume text is very short (under 150 characters). Check the extracted text or paste your full resume.");
+  if (!jd) errs.push("Paste a job description.");
+  else if (words(jd) < 25) errs.push(`The job description has only ${words(jd)} words. Paste the full posting, including the requirements, so the comparison means something.`);
+  return errs;
+}
+
+function analyze() {
+  const errs = validate(), box = $("formError");
+  if (errs.length) {
+    box.hidden = false; box.innerHTML = `<b>Can't analyze yet</b><ul>${errs.map((e) => `<li>${esc(e)}</li>`).join("")}</ul>`;
+    if (errs.some((e) => e.includes("resume"))) setStep("read", "error");
+    if (errs.some((e) => e.includes("job description"))) setStep("jd", "error");
+    return;
+  }
+  box.hidden = true;
+  aiController?.abort();
+  state.resumeText = $("resumeText").value.trim(); state.jd = $("jd").value.trim();
+  state.isExample = false; state.marks = {}; state.ai = null; state.aiStatus = "idle";
+  if (!state.fileName) state.fileName = "Pasted resume text";
+  setStep("read", "done"); setStep("jd", "done"); setStep("match", "active");
+  state.local = analyzeLocal(state.resumeText, state.jd);
+  setStep("match", "done");
+  render();
+  go("results");
+  runAI();
+}
+
+// ---------- Report ----------
+function buildMarkdown() {
+  const L = state.local, sc = computeScore(L, state.marks), [bl] = band(sc.total), a = state.aiStatus === "done" ? state.ai : null;
+  const hits = L.jdSkills.filter((s) => s.found), miss = L.jdSkills.filter((s) => !s.found);
+  const have = miss.filter((s) => state.marks[s.name] === "have"), lack = miss.filter((s) => state.marks[s.name] === "lack"), unmarked = miss.filter((s) => !state.marks[s.name]);
+  const sk = (s) => s.name + (s.preferred ? " (preferred)" : "");
+  const L1 = [];
+  L1.push("# Resume Analysis Report", "");
+  L1.push(`Resume: ${state.isExample ? "Sample resume (example)" : state.fileName}  `, `Generated: ${new Date().toLocaleString()}  `, "Made with ResumeLens", "");
+  L1.push(`> This score is an estimate of how much of the job description's wording appears in the resume. It is not a prediction of selection and does not reflect how any employer screens candidates.`, "");
+  L1.push(`## Match score: ${sc.total}/100 (${bl})`, "", "| Part | Points | Detail |", "|---|---|---|");
+  if (sc.hasSkills) L1.push(`| Skills match | ${sc.skillPts.toFixed(1)} / ${sc.skillMax} | ${hits.length} of ${L.jdSkills.length} job-description skills found |`);
+  L1.push(`| Keyword coverage | ${sc.kwPts.toFixed(1)} / ${sc.kwMax} | ${sc.kwFound} of ${L.kws.length} top keywords found |`, `| Resume essentials | ${sc.essPts.toFixed(1)} / 15 | ${L.ess.filter((e) => e.ok === 1).length} of 5 checks passed |`, "");
+  L1.push("## Skills found in the resume", "", hits.length ? hits.map((s) => "- " + sk(s)).join("\n") : "- None", "");
+  if (a?.extra_matched_skills?.some((x) => x.evidenceOk)) L1.push("Claude also found evidence for:", "", a.extra_matched_skills.filter((x) => x.evidenceOk).map((x) => `- ${x.skill}: "${x.evidence}"`).join("\n"), "");
+  L1.push("## Skills not found in the resume text", "", "_Not found in the text does not mean the skill is missing. These are grouped by what you marked._", "");
+  if (have.length) L1.push("**You have these. Add them to your resume with evidence:**", "", have.map((s) => "- " + sk(s)).join("\n"), "");
+  if (lack.length) L1.push("**To learn:**", "", lack.map((s) => "- " + sk(s)).join("\n"), "");
+  if (unmarked.length) L1.push("**Not yet reviewed:**", "", unmarked.map((s) => "- " + sk(s)).join("\n"), "");
+  if (!miss.length) L1.push("- None. Every detected skill appears in the resume.", "");
+  if (have.length) L1.push(`If the skills you marked are added with real evidence, the estimate would be about ${computeScore(L, state.marks, true).total}/100.`, "");
+  L1.push("## Job description keywords", "", `Found: ${L.kws.filter((k) => k.found).map((k) => k.word).join(", ") || "none"}  `, `Not found: ${L.kws.filter((k) => !k.found).map((k) => k.word).join(", ") || "none"}`, "");
+  L1.push("## Resume essentials", "", L.ess.map((e) => `- ${e.ok === 1 ? "[x]" : e.ok ? "[~]" : "[ ]"} ${e.name}: ${e.tip}`).join("\n"), "");
+  if (a) {
+    L1.push("## Claude's review", "", a.summary, "");
+    if (a.strengths.length) L1.push("### What already works", "", a.strengths.map((s) => `- ${s.point}${s.evidenceOk ? ` (resume: "${s.evidence}")` : ""}`).join("\n"), "");
+    if (a.improvements.length) L1.push("### Suggested improvements", "", a.improvements.map((i) => `- **[${i.priority}] ${i.section}: ${i.issue}** ${i.suggestion}`).join("\n"), "");
+    if (a.project_rewrites.length) { L1.push("### Stronger project and experience lines", ""); a.project_rewrites.forEach((r) => { L1.push(`- Current: ${r.original}`, `  - Suggested: ${r.improved}`, `  - Why: ${r.why}`); r.flags.forEach((f) => L1.push(`  - Check: ${f}`)); }); L1.push("", "_Fill every [placeholder] with your real figure or remove it._", ""); }
+    if (a.keywords_to_add_if_true.length) L1.push("### Terms to add only if true", "", a.keywords_to_add_if_true.join(", "), "");
+  } else L1.push("## Claude's review", "", "Not included (the review was not run or did not finish).", "");
+  L1.push("## Limitations", "", "- Keyword matching checks exact wording and a fixed list of about 120 skills; it cannot judge depth or quality.", "- Scanned PDFs, tables and multi-column layouts may extract imperfectly.", "- AI suggestions can be wrong. Never add skills, numbers or experience you don't have.");
+  return L1.join("\n");
+}
+
+function mdToHtml(md) {
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/_(.+?)_/g, "<em>$1</em>").replace(/ {2}$/, "<br>");
+  const out = []; let list = 0, table = null;
+  const closeList = () => { while (list > 0) { out.push("</ul>"); list--; } };
+  const closeTable = () => { if (table) { out.push("<table>" + table.map((r, i) => "<tr>" + r.map((c) => (i ? `<td>${inline(c)}</td>` : `<th>${inline(c)}</th>`)).join("") + "</tr>").join("") + "</table>"); table = null; } };
+  for (const line of md.split("\n")) {
+    if (/^\|/.test(line)) { closeList(); if (/^\|[-|]+\|$/.test(line)) continue; (table ||= []).push(line.slice(1, -1).split("|").map((c) => c.trim())); continue; }
+    closeTable();
+    const m = line.match(/^( *)- (.*)$/);
+    if (m) { const depth = m[1].length / 2 + 1; while (list < depth) { out.push("<ul>"); list++; } while (list > depth) { out.push("</ul>"); list--; } out.push(`<li>${inline(m[2])}</li>`); continue; }
+    closeList();
+    if (/^### /.test(line)) out.push(`<h3>${inline(line.slice(4))}</h3>`);
+    else if (/^## /.test(line)) out.push(`<h2>${inline(line.slice(3))}</h2>`);
+    else if (/^# /.test(line)) out.push(`<h1>${inline(line.slice(2))}</h1>`);
+    else if (/^> /.test(line)) out.push(`<blockquote>${inline(line.slice(2))}</blockquote>`);
+    else if (line.trim()) out.push(`<p>${inline(line)}</p>`);
+  }
+  closeList(); closeTable();
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Resume Analysis Report</title><style>
+body{font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;max-width:760px;margin:40px auto;padding:0 20px;color:#121A2B;line-height:1.55;background:#fff}
+h1{font-size:1.8rem;margin-bottom:4px}h2{margin-top:2rem;border-bottom:1px solid #D7DDE8;padding-bottom:6px;font-size:1.2rem}h3{font-size:1rem;margin-top:1.4rem}
+blockquote{background:#FAEFD8;margin:16px 0;padding:10px 14px;border-radius:8px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #D7DDE8;padding:6px 10px;text-align:left}th{background:#E9EDF4}
+li{margin:3px 0}em{color:#566179}@media print{body{margin:0}}</style></head><body>${out.join("\n")}</body></html>`;
+}
+
+async function download(kind) {
+  if (!state.local) return;
+  const md = buildMarkdown();
+  const base = "resume-analysis-" + new Date().toISOString().slice(0, 10);
+  if (!downloadsApi) { showCopy(md); toast("Downloads aren't available here. The report text is shown below to copy."); return; }
+  try {
+    await downloadsApi.save({ filename: base + (kind === "html" ? ".html" : ".md"), data: kind === "html" ? mdToHtml(md) : md });
+    toast("Report saved.");
+  } catch (e) {
+    if (e?.code === "declined") return;
+    if (e?.code === "rate_limited") { toast("A save prompt is already open. Finish it first."); return; }
+    showCopy(md); toast("The download didn't work here. The report text is shown below to copy.");
+  }
+}
+function showCopy(md) { const t = $("copyArea"); t.value = md; t.hidden = false; }
+async function copyReport() {
+  if (!state.local) return;
+  const md = buildMarkdown();
+  try { await navigator.clipboard.writeText(md); toast("Report copied."); }
+  catch { showCopy(md); $("copyArea").select(); toast("Select the text below and copy it."); }
+}
+
+// ---------- Wiring ----------
+$("file").addEventListener("change", (e) => handleFile(e.target.files[0]));
+const drop = $("drop");
+["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => { const f = e.dataTransfer?.files?.[0]; if (f) handleFile(f); });
+$("jd").addEventListener("input", () => { $("jdCount").textContent = `${words($("jd").value).toLocaleString()} words`; if (words($("jd").value) >= 25) setStep("jd", "done"); });
+$("resumeText").addEventListener("input", () => { if (!state.fileName || state.fileName === "Pasted resume text") state.fileName = "Pasted resume text"; });
+$("analyzeBtn").addEventListener("click", analyze);
+$("clearBtn").addEventListener("click", () => {
+  aiController?.abort();
+  $("file").value = ""; $("resumeText").value = ""; $("jd").value = ""; $("jdCount").textContent = "0 words";
+  setFileStatus("", ""); $("formError").hidden = true; state.fileName = ""; state.stepStates = {}; renderSteps();
+});
+$("loadSampleBtn").addEventListener("click", () => {
+  $("resumeText").value = SAMPLE_RESUME; $("jd").value = SAMPLE_JD; $("jdCount").textContent = `${words(SAMPLE_JD)} words`;
+  $("textDetails").open = true; state.fileName = "Sample resume"; setFileStatus("ok", "Sample resume loaded. Click <b>Analyze resume</b>.");
+  go("start");
+});
+
+// ---------- Page navigation ----------
+function go(view, fromHistory) {
+  $("view-start").hidden = view !== "start";
+  $("view-results").hidden = view !== "results";
+  if (!fromHistory && location.hash !== "#" + view) { try { history.pushState(null, "", "#" + view); } catch {} }
+  window.scrollTo({ top: 0 });
+}
+window.addEventListener("popstate", () => go(location.hash === "#results" ? "results" : "start", true));
+$("backBtn").addEventListener("click", () => go("start"));
+$("newBtn").addEventListener("click", () => { $("clearBtn").click(); go("start"); });
+$("exampleBtn").addEventListener("click", () => {
+  aiController?.abort();
+  Object.assign(state, { resumeText: SAMPLE_RESUME, jd: SAMPLE_JD, local: analyzeLocal(SAMPLE_RESUME, SAMPLE_JD), isExample: true, marks: {}, ai: null, aiStatus: "idle", stepStates: { read: "done", jd: "done", match: "done" } });
+  renderSteps(); render(); go("results");
+});
+$("missList").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-skill]"); if (!b) return;
+  const k = b.dataset.skill; state.marks[k] = state.marks[k] === b.dataset.v ? "" : b.dataset.v; render();
+});
+$("dlHtml").addEventListener("click", () => download("html"));
+$("dlMd").addEventListener("click", () => download("md"));
+$("copyMd").addEventListener("click", copyReport);
+
+// Example state on load: the page shows what it does before the user adds anything.
+state.resumeText = SAMPLE_RESUME; state.jd = SAMPLE_JD; state.local = analyzeLocal(SAMPLE_RESUME, SAMPLE_JD);
+state.stepStates = { read: "done", jd: "done", match: "done" };
+renderSteps(); render();
+go(location.hash === "#results" ? "results" : "start", true);
+
+(async () => {
+  if (!window.claude?.use) { if (state.aiStatus === "idle" && !state.isExample) { state.aiStatus = "unavailable"; renderAI(); } return; }
+  const [s, d] = await Promise.all([window.claude.use("sample").catch(() => null), window.claude.use("downloads").catch(() => null)]);
+  sampleFn = s; downloadsApi = d;
+})();
+</script>
+
+</body></html>
